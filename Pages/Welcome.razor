@@ -1,14 +1,81 @@
 ﻿@page "/"
-@inject IConfirmService _confirmService
 @inject ModalService _modalService
+@using AntDesign.TableModels
+@using System.ComponentModel
+@inject HttpClient Http
 
-<Space>
-    <SpaceItem>
-        <Button OnClick="OpenModal" Type="primary">Open a Modal</Button>
-    </SpaceItem>
-</Space>
+<Table TItem="Data" DataSource="_data" Total="_total" OnChange="HandleTableChange" RemoteDataSource="true">
+    <TitleTemplate>
+        <Space>
+            <SpaceItem>
+                <Button OnClick="OpenModal" Type="primary">Open a Modal</Button>
+            </SpaceItem>
+        </Space>
+    </TitleTemplate>
+    <ColumnDefinitions>
+        <Selection />
+        <PropertyColumn Property="c=>c.Id"></PropertyColumn>
+        <PropertyColumn Property="c => c.Creator" />
+    </ColumnDefinitions>
+    <ExpandTemplate Context="rowData">
+        <Table DataSource="rowData.Data.NestedData" HidePagination>
+            <PropertyColumn Property="c => c.Date" />
+            <ActionColumn Title="Action">
+                <Space Size="@("middle")">
+                    <SpaceItem>
+                        <Button OnClick="OpenModal" Type="primary">Open a Modal</Button>
+                    </SpaceItem>
+                </Space>
+            </ActionColumn>
+        </Table>
+    </ExpandTemplate>
+
+</Table>
 
 @code {
+    bool _loading = false;
+
+    int _total;
+    Data[] _data = Array.Empty<Data>();
+    IEnumerable<Data> _items;
+
+    async Task HandleTableChange(QueryModel<Data> queryModel)
+    {
+        _loading = true;
+        var data = await GetForecastAsync(queryModel.PageIndex, queryModel.PageSize);
+        _loading = false;
+        _data = data;
+        _total = 40;
+    }
+
+    public Task<Data[]> GetForecastAsync(int pageIndex, int pageSize)
+    {
+        var rng = new Random();
+        return Task.FromResult(Enumerable.Range((pageIndex - 1) * pageSize + 1, pageSize).Select(index => new Data()
+            {
+                Id = index,
+                Name = "Screem",
+                Platform = "iOS",
+                Version = "10.3.4.5654",
+                UpgradeNum = 500,
+                Creator = "Jack",
+                CreatedAt = DateTime.Parse("2014-12-24 23:12:00"),
+                NestedData = Enumerable.Range(0, 3).Select(i => new NestedData()
+                {
+                    Key = i,
+                    Date = DateTime.Parse("2014-12-24 23:12:00"),
+                    Name = "This is production name",
+                    UpgradeNum = "Upgraded: 56"
+                }).ToArray()
+            }).ToArray());
+    }
+    public class ApiResponse
+    {
+        public Data[] Results { get; set; }
+
+        public int TotalCount { get; set; } = 200; // 200 is mock data, you should read it from server
+    }
+
     string _okText = "OK!";
     string _cancelText = "Cancel?";
     string _title = "Override Locale";
@@ -26,5 +93,28 @@
         };
 
         await _modalService.CreateModalAsync(modalConfig);
+    }
+
+    public class Data
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Platform { get; set; }
+        public string Version { get; set; }
+        [DisplayName("Upgraded")]
+        public int UpgradeNum { get; set; }
+        public string Creator { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        public NestedData[] NestedData { get; set; }
+    }
+
+    public class NestedData
+    {
+        public int Key { get; set; }
+        public DateTime Date { get; set; }
+        public string Name { get; set; }
+        [DisplayName("Upgrade Status")]
+        public string UpgradeNum { get; set; }
     }
 }
